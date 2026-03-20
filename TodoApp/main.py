@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from .openai.openai_client import client
 from .routers.todos import templates
 from fastapi.responses import HTMLResponse
-
+from fastapi import Form
 
 app = FastAPI()
 
@@ -26,38 +26,6 @@ def test(request: Request):
 def health_check():
     return {'status': 'Healthy'}
 
-
-class PromptRequest(BaseModel):
-    prompt: str
-
-@app.get("/test-openai", response_class=HTMLResponse)
-async def test_openai(request: Request):
-
-    completion = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {
-                "role": "user",
-                "content": "Explícame qué es FastAPI en 3 líneas"
-            }
-        ]
-    )
-
-    #ai_response = completion.choices[0].message.content
-    ai_response = "FastAPI es un framework web moderno para Python que permite construir APIs rápidas y con mínimo boilerplate."
-
-
-    # Tus todos (o los reales de DB)
-    todos = []
-
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "todos": todos,
-            "ai_response": ai_response,
-        }
-    )
 
 app.include_router(auth.router)
 app.include_router(todos.router)

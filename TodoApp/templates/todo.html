@@ -54,18 +54,25 @@
 
   <!-- 🧠 CAJA OPENAI -->
     <div class="card mt-4">
-        <div class="card-header">
-            AI Productivity Tip
-        </div>
-
-        <div class="card-body">
-
-            <p class="card-text">
-                {{ ai_response }}
-            </p>
-
-        </div>
+    <div class="card-header">
+        Ask IA
     </div>
+    <div class="card-body">
+        <form action="/todos/todo-page" method="POST" class="mb-3">
+            <div class="input-group">
+                <input type="text" name="user_prompt" class="form-control" placeholder="Give me a prompt" required>
+                <button class="btn btn-outline-primary" type="submit">Ask ChatGPT</button>
+            </div>
+        </form>
+
+        {% if ai_response %}
+        <div class="alert alert-info mt-2">
+            <strong>OpenAI Response</strong>
+            <p class="card-text">{{ ai_response }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
     </div>
 </div>
 

@@ -1,13 +1,14 @@
 from typing import Annotated
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
-from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, status, Form
 from starlette import status
 from ..models import Todos
 from ..database import SessionLocal
 from .auth import get_current_user
-from starlette.responses import RedirectResponse
+from starlette.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
+from ..openai.openai_client import client
 
 templates = Jinja2Templates(directory="TodoApp/templates")
 
@@ -43,22 +44,46 @@ def redirect_to_login():
 
 
 ### Pages ###
+async def get_page_context(request: Request, db: db_dependency, ai_response: str = None):
+    user = await get_current_user(request.cookies.get('access_token'))
+    if not user:
+        return None
 
+    todos = db.query(Todos).filter(Todos.owner_id == user.get("id")).all()
+
+    return {
+        "request": request,
+        "todos": todos,
+        "user": user,
+        "ai_response": ai_response
+    }
+
+# 2. Ruta GET: Carga limpia
 @router.get("/todo-page")
 async def render_todo_page(request: Request, db: db_dependency):
-    try:
-        user = await get_current_user(request.cookies.get('access_token'))
+    context = await get_page_context(request, db)
+    if context is None:
+        return redirect_to_login()
+    return templates.TemplateResponse("todo.html", context)
 
-        if user is None:
-            return redirect_to_login()
 
-        todos = db.query(Todos).filter(Todos.owner_id == user.get("id")).all()
+# 3. Ruta POST: Carga con respuesta de IA
+@router.post("/todo-page", response_class=HTMLResponse)
+async def post_ai_prompt(request: Request, db: db_dependency, user_prompt: str = Form(...)):
+    # Llamada a Groq
+    completion = client.chat.completions.create(
+        model="llama-3.1-8b-instant",
+        messages=[{"role": "user", "content": user_prompt}]
+    )
+    ai_res = completion.choices[0].message.content
 
-        return templates.TemplateResponse("todo.html", {"request": request, "todos": todos, "user": user})
+    # Obtenemos el contexto completo (incluyendo los todos reales)
+    context = await get_page_context(request, db, ai_response=ai_res)
 
-    except:
+    if context is None:
         return redirect_to_login()
 
+    return templates.TemplateResponse("todo.html", context)
 
 @router.get('/add-todo-page')
 async def render_todo_page(request: Request):
